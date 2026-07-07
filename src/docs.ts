@@ -8,9 +8,9 @@ app.get("/api/docs/openapi.json", (c) => {
   return c.json(spec);
 });
 
-// Serve Scalar API Reference UI
+// Serve Scalar API Reference UI (spec inlined to avoid CORS/fetch issues)
 app.get("/api/docs", (c) => {
-  const specUrl = new URL("/api/docs/openapi.json", c.req.url).toString();
+  const specJson = JSON.stringify(spec);
 
   return c.html(`<!DOCTYPE html>
 <html lang="en">
@@ -30,14 +30,13 @@ app.get("/api/docs", (c) => {
 <body>
   <script
     id="api-reference"
-    data-url="${specUrl}"
     data-theme="kepler"
     data-layout="modern"
     data-hide-download-button="false"
     data-search="true"
-    data-hideModels="false"
-    data-hideTestRequestButton="false"
-  ></script>
+    data-hide-models="false"
+    data-hide-test-request-button="false"
+  >${specJson}</script>
   <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@latest/dist/browser/standalone.min.js"></script>
 </body>
 </html>`);
