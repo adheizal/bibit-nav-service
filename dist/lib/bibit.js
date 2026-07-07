@@ -8,26 +8,27 @@ const HEADERS = {
 };
 /**
  * Decrypt Bibit's encrypted response format.
- * Format: U2FsdGVkX1<IV-HEX><ENCRYPTED_DATA><KEY-UTF8>
+ * Format: <IV-HEX><ENCRYPTED_DATA><KEY-UTF8>
+ * (Legacy format had U2FsdGVkX1 prefix, now removed)
  *
- * IV: First 32 characters after prefix (hex-encoded, 16 bytes)
+ * IV: First 32 characters (hex-encoded, 16 bytes)
  * Key: Last 32 characters (UTF-8 bytes directly, 32 bytes)
  * Data: Everything between IV and Key (hex-decoded to ciphertext)
  */
 function decryptBibitResponse(raw) {
-    const PREFIX = "U2FsdGVkX1";
     const IV_LENGTH = 32; // hex chars = 16 bytes
     const KEY_LENGTH = 32; // UTF-8 chars = 32 bytes
-    if (!raw.startsWith(PREFIX)) {
-        throw new Error("Invalid Bibit response: missing prefix");
+    // Strip legacy CryptoJS prefix if present
+    let data = raw;
+    if (data.startsWith("U2FsdGVkX1")) {
+        data = data.slice("U2FsdGVkX1".length);
     }
-    const withoutPrefix = raw.slice(PREFIX.length);
-    if (withoutPrefix.length < IV_LENGTH + KEY_LENGTH) {
+    if (data.length < IV_LENGTH + KEY_LENGTH) {
         throw new Error("Invalid Bibit response: too short");
     }
-    const ivHex = withoutPrefix.slice(0, IV_LENGTH);
-    const keyStr = withoutPrefix.slice(-KEY_LENGTH);
-    const encryptedHex = withoutPrefix.slice(IV_LENGTH, -KEY_LENGTH);
+    const ivHex = data.slice(0, IV_LENGTH);
+    const keyStr = data.slice(-KEY_LENGTH);
+    const encryptedHex = data.slice(IV_LENGTH, -KEY_LENGTH);
     const iv = Buffer.from(ivHex, "hex");
     const key = Buffer.from(keyStr, "utf-8");
     const ciphertext = Buffer.from(encryptedHex, "hex");
@@ -47,7 +48,18 @@ async function fetchEncrypted(path) {
 }
 async function fetchDecrypted(path) {
     const raw = await fetchEncrypted(path);
-    const decrypted = decryptBibitResponse(raw);
+    // Bibit API wraps response in JSON: {"message": "...", "data": "encrypted_string"}
+    let encrypted = raw;
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed.data && typeof parsed.data === "string") {
+            encrypted = parsed.data;
+        }
+    }
+    catch {
+        // Not JSON, use raw as-is (legacy format)
+    }
+    const decrypted = decryptBibitResponse(encrypted);
     return JSON.parse(decrypted);
 }
 /**
@@ -56,17 +68,31 @@ async function fetchDecrypted(path) {
  */
 export async function fetchFundDetail(symbol) {
     const data = await fetchDecrypted(`/products/${symbol}`);
-    // Extract useful fields
+    // nav field may be a number (legacy) or object {date, first_date, value} (current)
+    let navValue;
+    let navDateStr;
+    const navField = data.nav;
+    if (navField && typeof navField === "object" && !Array.isArray(navField)) {
+        const navObj = navField;
+        navValue = navObj.value || undefined;
+        navDateStr = navObj.date || undefined;
+    }
+    else if (typeof navField === "number") {
+        navValue = navField;
+    }
+    // investment_manager may contain management info
+    const investMgr = data.investment_manager;
+    // Spread raw data first, then override with extracted values
     return {
-        id: symbol,
+        ...data,
+        id: data.symbol || symbol,
         name: data.name || data.product_name || symbol,
         type: data.type || data.product_type || "unknown",
         isin: data.isin || undefined,
-        managementCompany: data.management_company || data.issuer_name || undefined,
-        manager: data.manager || undefined,
-        nav: data.nav || data.price || undefined,
-        navDate: data.nav_date || data.date || undefined,
-        ...data,
+        managementCompany: data.management_company || investMgr?.name || undefined,
+        manager: data.manager || investMgr?.manager || undefined,
+        nav: navValue,
+        navDate: navDateStr,
     };
 }
 /**
@@ -89,9 +115,14 @@ export async function fetchHistoricalNav(symbol, period = "1Y") {
     return points
         .map((p) => {
         const point = p;
+        // Bibit chart uses formated_date (string) or date (unix timestamp)
+        let dateStr = point.formated_date || point.nav_date || "";
+        if (!dateStr && typeof point.date === "number") {
+            dateStr = new Date(point.date * 1000).toISOString().slice(0, 10);
+        }
         return {
-            date: point.date || point.nav_date || "",
-            nav: point.nav || point.price || 0,
+            date: dateStr,
+            nav: point.value || point.nav || point.price || 0,
         };
     })
         .filter((p) => p.date && p.nav > 0)

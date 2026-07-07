@@ -191,22 +191,18 @@ app.get("/api/nav/latest", async (c) => {
       return c.json({ error: "No valid fund IDs provided" }, 400);
     }
 
-    const results = await db
-      .select({
-        fundId: navHistory.fundId,
-        navDate: navHistory.navDate,
-        nav: navHistory.nav,
-      })
-      .from(navHistory)
-      .where(inArray(navHistory.fundId, fundIds))
-      .orderBy(sql`${navHistory.navDate} DESC`)
-      .all();
-
-    // Get the latest NAV for each fund
+    // Query each fund's latest NAV individually (fast with index on fund_id+nav_date)
     const latestByFund = new Map<string, { navDate: string; nav: number }>();
-    for (const row of results) {
-      if (!latestByFund.has(row.fundId)) {
-        latestByFund.set(row.fundId, { navDate: row.navDate, nav: row.nav });
+    for (const fundId of fundIds) {
+      const latest = await db
+        .select()
+        .from(navHistory)
+        .where(eq(navHistory.fundId, fundId))
+        .orderBy(sql`${navHistory.navDate} DESC`)
+        .limit(1)
+        .get();
+      if (latest) {
+        latestByFund.set(fundId, { navDate: latest.navDate, nav: latest.nav });
       }
     }
 
