@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import routes from "./routes/index.js";
+import docs from "./docs.js";
 
 const app = new Hono();
 
@@ -46,10 +47,11 @@ setInterval(() => {
 
 // Mount routes
 app.route("/", routes);
+app.route("/", docs);
 
 // Root redirect
 app.get("/", (c) => {
-  return c.redirect("/api/health");
+  return c.redirect("/api/docs");
 });
 
 export default app;
