@@ -49,7 +49,7 @@ app.get("/api/funds", async (c) => {
     });
   } catch (error) {
     console.error("Error listing funds:", error);
-    return c.json({ error: "Failed to list funds" }, 500);
+    return c.json({ error: "Failed to list funds", detail: String(error) }, 500);
   }
 });
 
@@ -82,7 +82,7 @@ app.get("/api/funds/:id", async (c) => {
     });
   } catch (error) {
     console.error("Error fetching fund:", error);
-    return c.json({ error: "Failed to fetch fund" }, 500);
+    return c.json({ error: "Failed to fetch fund", detail: String(error) }, 500);
   }
 });
 
@@ -171,7 +171,7 @@ app.get("/api/funds/:id/nav", async (c) => {
     });
   } catch (error) {
     console.error("Error fetching NAV history:", error);
-    return c.json({ error: "Failed to fetch NAV history" }, 500);
+    return c.json({ error: "Failed to fetch NAV history", detail: String(error) }, 500);
   }
 });
 
@@ -218,7 +218,7 @@ app.get("/api/nav/latest", async (c) => {
     return c.json({ data });
   } catch (error) {
     console.error("Error fetching latest NAV:", error);
-    return c.json({ error: "Failed to fetch latest NAV" }, 500);
+    return c.json({ error: "Failed to fetch latest NAV", detail: String(error) }, 500);
   }
 });
 
@@ -266,7 +266,7 @@ app.get("/api/nav/compare", async (c) => {
     });
   } catch (error) {
     console.error("Error comparing funds:", error);
-    return c.json({ error: "Failed to compare funds" }, 500);
+    return c.json({ error: "Failed to compare funds", detail: String(error) }, 500);
   }
 });
 
@@ -279,7 +279,7 @@ app.get("/api/fetch/status", async (c) => {
     return c.json({ data: status });
   } catch (error) {
     console.error("Error fetching status:", error);
-    return c.json({ error: "Failed to fetch status" }, 500);
+    return c.json({ error: "Failed to fetch status", detail: String(error) }, 500);
   }
 });
 
@@ -295,7 +295,7 @@ app.post("/api/fetch/trigger", async (c) => {
     });
   } catch (error) {
     console.error("Error triggering fetch:", error);
-    return c.json({ error: "Failed to trigger fetch" }, 500);
+    return c.json({ error: "Failed to trigger fetch", detail: String(error) }, 500);
   }
 });
 

@@ -13,6 +13,8 @@ const client: Client = createClient({
 export const db = drizzle(client, { schema });
 
 export async function initDatabase(): Promise<void> {
+  console.log(`Database URL: ${TURSO_DATABASE_URL}`);
+  console.log(`Auth token configured: ${TURSO_AUTH_TOKEN ? "yes" : "no (using local file)"}`);
   // Create tables if they don't exist
   await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS funds (
