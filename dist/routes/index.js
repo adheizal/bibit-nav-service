@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { db } from "../lib/db.js";
 import { funds, navHistory } from "../schema.js";
 import { eq, sql, and, gte, lte, inArray } from "drizzle-orm";
-import { runFetchCycle, getLastFetchStatus } from "../services/nav-fetcher.js";
+import { runFetchCycle, getLastFetchStatus, scanAndDiscoverFunds } from "../services/nav-fetcher.js";
 import { fetchHistoricalNav } from "../lib/bibit.js";
 const app = new Hono();
 /**
@@ -262,6 +262,24 @@ app.post("/api/fetch/trigger", async (c) => {
     catch (error) {
         console.error("Error triggering fetch:", error);
         return c.json({ error: "Failed to trigger fetch", detail: String(error) }, 500);
+    }
+});
+/**
+ * POST /api/fetch/scan - Manually trigger fund discovery scan
+ */
+app.post("/api/fetch/scan", async (c) => {
+    try {
+        const start = parseInt(c.req.query("start") || "1", 10);
+        const end = parseInt(c.req.query("end") || "5000", 10);
+        const result = await scanAndDiscoverFunds(start, end);
+        return c.json({
+            message: "Fund scan triggered successfully",
+            data: result,
+        });
+    }
+    catch (error) {
+        console.error("Error triggering fund scan:", error);
+        return c.json({ error: "Failed to trigger fund scan", detail: String(error) }, 500);
     }
 });
 /**
