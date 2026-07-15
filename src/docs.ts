@@ -23,7 +23,6 @@ app.get("/api/docs", (c) => {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden;
     }
   </style>
 </head>
